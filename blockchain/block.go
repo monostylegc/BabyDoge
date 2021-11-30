@@ -4,7 +4,9 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
-	"sync"
+
+	"github.com/monostylegc/BabyDoge/db"
+	"github.com/monostylegc/BabyDoge/utils"
 )
 
 type Block struct {
@@ -14,55 +16,35 @@ type Block struct {
 	Height   int    `json:"height"`
 }
 
-type blockchain struct {
-	blocks []*Block
+func (b *Block) persist() {
+	db.SaveBlock(b.Hash, utils.ToBytes(b))
 }
 
-var b *blockchain
-var once sync.Once
+var ErrNotFound = errors.New("Block not found")
 
-func (b *Block) calculateHash() {
-	hash := sha256.Sum256([]byte(b.Data + b.PrevHash))
-	b.Hash = fmt.Sprint("%x", hash)
+func (b *Block) restore(data []byte) {
+	utils.FromBytes(b, data)
 }
 
-func getLastHash() string {
-	totalBlocks := len(GetBlockchain().blocks)
-	if totalBlocks == 0 {
-		return ""
-	}
-	return GetBlockchain().blocks[totalBlocks-1].Hash
-}
-
-func createBlock(data string) *Block {
-	newBlock := Block{data, "", getLastHash(), len(GetBlockchain().blocks) + 1}
-	newBlock.calculateHash()
-	return &newBlock
-}
-
-func (b *blockchain) Addblock(data string) {
-	b.blocks = append(b.blocks, createBlock(data))
-}
-
-func GetBlockchain() *blockchain {
-	if b == nil {
-		once.Do((func() {
-			b = &blockchain{}
-			b.Addblock("genesis")
-		}))
-	}
-	return b
-}
-
-func (b *blockchain) AllBlocks() []*Block {
-	return b.blocks
-}
-
-var ErrNotFound = errors.New("block not found")
-
-func (b *blockchain) GetBlock(height int) (*Block, error) {
-	if height > len(b.blocks) {
+func FindBlock(hash string) (*Block, error) {
+	blockByte := db.Block(hash)
+	if blockByte == nil {
 		return nil, ErrNotFound
 	}
-	return b.blocks[height-1], nil
+	block := &Block{}
+	block.restore(blockByte)
+	return block, nil
+}
+
+func createBlock(data string, prevHash string, height int) *Block {
+	block := &Block{
+		Data:     data,
+		Hash:     "",
+		PrevHash: prevHash,
+		Height:   height,
+	}
+	payload := block.Data + block.PrevHash + fmt.Sprint(block.Height)
+	block.Hash = fmt.Sprintf("%x", sha256.Sum256([]byte(payload)))
+	block.persist()
+	return block
 }

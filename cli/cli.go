@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"runtime"
 
 	"github.com/monostylegc/BabyDoge/explorer"
 	"github.com/monostylegc/BabyDoge/rest"
@@ -14,7 +15,8 @@ func usage() {
 	fmt.Printf("Please use the following flags:\n\n")
 	fmt.Printf("-port:		Set the PORT of the server\n")
 	fmt.Printf("-mode:		Choose between 'html' and 'rest'\n\n")
-	os.Exit(0)
+	//exit하기 전에 defer를 실행하고 exit한다...
+	runtime.Goexit()
 }
 
 func Start() {
