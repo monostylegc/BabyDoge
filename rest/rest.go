@@ -8,7 +8,6 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/monostylegc/BabyDoge/blockchain"
-	"github.com/monostylegc/BabyDoge/utils"
 	//"github.com/monostylegc/BabyDoge/utils"
 )
 
@@ -23,9 +22,9 @@ type uRLDescription struct {
 
 type URL string
 
-type addBlockBody struct {
-	Message string
-}
+// type addBlockBody struct {
+// 	Message string
+// }
 
 type errorResponse struct {
 	ErrorMessage string `json:"errorMessage"`
@@ -74,9 +73,10 @@ func blocks(rw http.ResponseWriter, r *http.Request) {
 	case "GET":
 		json.NewEncoder(rw).Encode(blockchain.Blockchain().Blocks())
 	case "POST":
-		var addBlockBody addBlockBody
-		utils.HandleErr(json.NewDecoder(r.Body).Decode(&addBlockBody))
-		blockchain.Blockchain().AddBlock(addBlockBody.Message)
+		//이 코드는 json을 Go struct에 적용하는 코드임
+		// var addBlockBody addBlockBody
+		// utils.HandleErr(json.NewDecoder(r.Body).Decode(&addBlockBody))
+		blockchain.Blockchain().AddBlock()
 		rw.WriteHeader(http.StatusCreated)
 	}
 }

@@ -70,8 +70,8 @@ func (b *blockchain) recalculateDifficulty() int {
 }
 
 //Block 추가
-func (b *blockchain) AddBlock(data string) {
-	block := createBlock(data, b.NewestHash, b.Height+1)
+func (b *blockchain) AddBlock() {
+	block := createBlock(b.NewestHash, b.Height+1)
 	b.NewestHash = block.Hash
 	b.CurrentDifficulty = block.Difficulty
 	b.Height = block.Height
@@ -95,6 +95,19 @@ func (b *blockchain) Blocks() []*Block {
 	return blocks
 }
 
+func (b *blockchain) TxOuts() []*TxOut {
+	blocks := b.Blocks()
+	var txOuts []*TxOut
+
+	for _, block := range blocks {
+		for _, tx := range block.Transactions {
+			txOuts = append(txOuts, tx.TxOuts...)
+		}
+	}
+
+	return txOuts
+}
+
 //initial함수
 func Blockchain() *blockchain {
 	if b == nil {
@@ -107,7 +120,7 @@ func Blockchain() *blockchain {
 
 			if checkpoint == nil {
 				//아무것도 없으면 생성
-				b.AddBlock("Genesis")
+				b.AddBlock()
 
 			} else {
 				//restore from byte
