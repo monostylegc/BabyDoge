@@ -108,6 +108,28 @@ func (b *blockchain) TxOuts() []*TxOut {
 	return txOuts
 }
 
+//주소로 TxOUT을 필터
+func (b *blockchain) TxOutsByAddress(address string) []*TxOut {
+	var ownedTxOuts []*TxOut
+	txOuts := b.TxOuts()
+	for _, txOut := range txOuts {
+		if txOut.Owner == address {
+			ownedTxOuts = append(ownedTxOuts, txOut)
+		}
+	}
+	return ownedTxOuts
+}
+
+//address의 잔고를 확인해준다.
+func (b *blockchain) BalanceByAddress(address string) int {
+	txOuts := b.TxOutsByAddress(address)
+	var amount int
+	for _, txOut := range txOuts {
+		amount += txOut.Amount
+	}
+	return amount
+}
+
 //initial함수
 func Blockchain() *blockchain {
 	if b == nil {
