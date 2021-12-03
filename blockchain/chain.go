@@ -7,6 +7,13 @@ import (
 	"github.com/monostylegc/BabyDoge/utils"
 )
 
+const (
+	defaultDifficulty  int = 2
+	difficultyInterval int = 5
+	blockInterval      int = 2
+	allowedRange       int = 2
+)
+
 type blockchain struct {
 	NewestHash        string `json:"newestHash"`
 	Height            int    `json:"height"`
@@ -16,13 +23,6 @@ type blockchain struct {
 var b *blockchain
 
 var once sync.Once
-
-const (
-	defaultDifficulty  int = 2
-	difficultyInterval int = 5
-	blockInterval      int = 2
-	allowedRange       int = 2
-)
 
 //byte에서 blockchain restore
 func (b *blockchain) restore(data []byte) {
@@ -95,39 +95,37 @@ func (b *blockchain) Blocks() []*Block {
 	return blocks
 }
 
-func (b *blockchain) TxOuts() []*TxOut {
-	blocks := b.Blocks()
-	var txOuts []*TxOut
-
-	for _, block := range blocks {
-		for _, tx := range block.Transactions {
-			txOuts = append(txOuts, tx.TxOuts...)
-		}
-	}
-
-	return txOuts
-}
-
-//주소로 TxOUT을 필터
-func (b *blockchain) TxOutsByAddress(address string) []*TxOut {
-	var ownedTxOuts []*TxOut
-	txOuts := b.TxOuts()
-	for _, txOut := range txOuts {
-		if txOut.Owner == address {
-			ownedTxOuts = append(ownedTxOuts, txOut)
-		}
-	}
-	return ownedTxOuts
-}
-
 //address의 잔고를 확인해준다.
 func (b *blockchain) BalanceByAddress(address string) int {
-	txOuts := b.TxOutsByAddress(address)
+	txOuts := b.UTxOutsByAddress(address)
 	var amount int
 	for _, txOut := range txOuts {
 		amount += txOut.Amount
 	}
 	return amount
+}
+
+func (b *blockchain) UTxOutsByAddress(address string) []*UTxOut {
+	var uTxOuts []*UTxOut
+	creatorTxs := make(map[string]bool)
+
+	for _, block := range b.Blocks() {
+		for _, tx := range block.Transactions {
+			for _, input := range tx.TxIns {
+				if input.Owner == address {
+					creatorTxs[input.TxID] = true
+				}
+			}
+			for index, output := range tx.TxOuts {
+				if output.Owner == address {
+					if _, ok := creatorTxs[tx.ID]; !ok {
+						uTxOuts = append(uTxOuts, &UTxOut{tx.ID, index, output.Amount})
+					}
+				}
+			}
+		}
+	}
+	return uTxOuts
 }
 
 //initial함수

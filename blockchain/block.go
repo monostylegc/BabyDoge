@@ -2,6 +2,7 @@ package blockchain
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -47,10 +48,10 @@ func (b *Block) mine() {
 		b.Timestamp = int(time.Now().Unix())
 
 		hash := utils.Hash(b)
-
+		fmt.Printf("\n\n\nTarget:%s\nHash:%s\nNonce:%d\n\n\n", target, hash, b.Nonce)
 		if strings.HasPrefix(hash, target) {
 			b.Hash = hash
-			return
+			break
 		} else {
 			b.Nonce++
 		}
@@ -67,6 +68,7 @@ func createBlock(prevHash string, height int) *Block {
 		Transactions: []*Tx{makeCoinbaseTx("sukbong")},
 	}
 	block.mine()
+	block.Transactions = Mempool.TxToConfirm()
 	block.persist()
 	return block
 }
