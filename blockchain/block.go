@@ -58,12 +58,12 @@ func (b *Block) mine() {
 	}
 }
 
-func createBlock(prevHash string, height int) *Block {
+func createBlock(prevHash string, difficulty, height int) *Block {
 	block := &Block{
 		Hash:         "",
 		PrevHash:     prevHash,
 		Height:       height,
-		Difficulty:   Blockchain().difficulty(),
+		Difficulty:   difficulty,
 		Nonce:        0,
 		Transactions: []*Tx{makeCoinbaseTx("sukbong")},
 	}

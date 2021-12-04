@@ -30,25 +30,25 @@ func (b *blockchain) restore(data []byte) {
 }
 
 //db에 blockchain 저장
-func (b *blockchain) persist() {
+func persistBlockchain(b *blockchain) {
 	db.SaveCheckpoint(utils.ToBytes(b))
 }
 
 //difficulty를 정함
-func (b *blockchain) difficulty() int {
+func getDifficulty(b *blockchain) int {
 	if b.Height == 0 {
 		return defaultDifficulty
 	} else if b.Height%difficultyInterval == 0 {
-		return b.recalculateDifficulty()
+		return recalculateDifficulty(b)
 	} else {
 		return b.CurrentDifficulty
 	}
 }
 
 //난이도를 재설정 너무빠르거나 느리게 채굴되지 않도록
-func (b *blockchain) recalculateDifficulty() int {
+func recalculateDifficulty(b *blockchain) int {
 	//모든 블록을 불러옴
-	allBlocks := b.Blocks()
+	allBlocks := Blocks(b)
 	//가장 새로운 블럭
 	newestBlock := allBlocks[0]
 	//마지막 난이도가 계산된 블럭 interval - 1
@@ -71,15 +71,15 @@ func (b *blockchain) recalculateDifficulty() int {
 
 //Block 추가
 func (b *blockchain) AddBlock() {
-	block := createBlock(b.NewestHash, b.Height+1)
+	block := createBlock(b.NewestHash, getDifficulty(b), b.Height+1)
 	b.NewestHash = block.Hash
 	b.CurrentDifficulty = block.Difficulty
 	b.Height = block.Height
-	b.persist()
+	persistBlockchain(b)
 }
 
 //block들을 불러온다(전부)
-func (b *blockchain) Blocks() []*Block {
+func Blocks(b *blockchain) []*Block {
 	hashCursor := b.NewestHash
 	var blocks []*Block
 
@@ -96,8 +96,8 @@ func (b *blockchain) Blocks() []*Block {
 }
 
 //address의 잔고를 확인해준다.
-func (b *blockchain) BalanceByAddress(address string) int {
-	txOuts := b.UTxOutsByAddress(address)
+func BalanceByAddress(address string, b *blockchain) int {
+	txOuts := UTxOutsByAddress(address, b)
 	var amount int
 	for _, txOut := range txOuts {
 		amount += txOut.Amount
@@ -105,11 +105,11 @@ func (b *blockchain) BalanceByAddress(address string) int {
 	return amount
 }
 
-func (b *blockchain) UTxOutsByAddress(address string) []*UTxOut {
+func UTxOutsByAddress(address string, b *blockchain) []*UTxOut {
 	var uTxOuts []*UTxOut
 	creatorTxs := make(map[string]bool)
 
-	for _, block := range b.Blocks() {
+	for _, block := range Blocks(b) {
 		for _, tx := range block.Transactions {
 			for _, input := range tx.TxIns {
 				if input.Owner == address {
@@ -119,7 +119,10 @@ func (b *blockchain) UTxOutsByAddress(address string) []*UTxOut {
 			for index, output := range tx.TxOuts {
 				if output.Owner == address {
 					if _, ok := creatorTxs[tx.ID]; !ok {
-						uTxOuts = append(uTxOuts, &UTxOut{tx.ID, index, output.Amount})
+						uTxOut := &UTxOut{tx.ID, index, output.Amount}
+						if !isOnMempool(uTxOut) {
+							uTxOuts = append(uTxOuts, uTxOut)
+						}
 					}
 				}
 			}
@@ -130,23 +133,22 @@ func (b *blockchain) UTxOutsByAddress(address string) []*UTxOut {
 
 //initial함수
 func Blockchain() *blockchain {
-	if b == nil {
-		once.Do(func() {
-			b = &blockchain{
-				Height: 0,
-			}
-			//우선 checkpoint를 찾아본다음 blockchain을 db에서 불러온다 db.Blockchain은 data or nil을 return
-			checkpoint := db.Checkpoint()
 
-			if checkpoint == nil {
-				//아무것도 없으면 생성
-				b.AddBlock()
+	once.Do(func() {
+		b = &blockchain{
+			Height: 0,
+		}
+		//우선 checkpoint를 찾아본다음 blockchain을 db에서 불러온다 db.Blockchain은 data or nil을 return
+		checkpoint := db.Checkpoint()
 
-			} else {
-				//restore from byte
-				b.restore(checkpoint)
-			}
-		})
-	}
+		if checkpoint == nil {
+			//아무것도 없으면 생성
+			b.AddBlock()
+
+		} else {
+			//restore from byte
+			b.restore(checkpoint)
+		}
+	})
 	return b
 }
