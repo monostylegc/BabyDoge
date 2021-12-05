@@ -95,6 +95,27 @@ func Blocks(b *blockchain) []*Block {
 	return blocks
 }
 
+//모든 Tx를 검색
+func Txs(b *blockchain) []*Tx {
+	var txs []*Tx
+
+	for _, block := range Blocks(b) {
+		txs = append(txs, block.Transactions...)
+	}
+
+	return txs
+}
+
+//TxID로 Tx를 검색
+func FindTx(b *blockchain, targetTxID string) *Tx {
+	for _, tx := range Txs(b) {
+		if tx.ID == targetTxID {
+			return tx
+		}
+	}
+	return nil
+}
+
 //address의 잔고를 확인해준다.
 func BalanceByAddress(address string, b *blockchain) int {
 	txOuts := UTxOutsByAddress(address, b)
@@ -112,12 +133,15 @@ func UTxOutsByAddress(address string, b *blockchain) []*UTxOut {
 	for _, block := range Blocks(b) {
 		for _, tx := range block.Transactions {
 			for _, input := range tx.TxIns {
-				if input.Owner == address {
+				if input.Singnature == "COINBASE" {
+					break
+				}
+				if FindTx(b, input.TxID).TxOuts[input.Index].Address == address {
 					creatorTxs[input.TxID] = true
 				}
 			}
 			for index, output := range tx.TxOuts {
-				if output.Owner == address {
+				if output.Address == address {
 					if _, ok := creatorTxs[tx.ID]; !ok {
 						uTxOut := &UTxOut{tx.ID, index, output.Amount}
 						if !isOnMempool(uTxOut) {
